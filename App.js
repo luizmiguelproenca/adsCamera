@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Platform, Alert, Modal } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Platform, Alert, Modal, Image } from 'react-native'
 
 import { Camera } from 'expo-camera'
 import * as Permissions from 'expo-permissions'
@@ -13,6 +13,7 @@ export default function App() {
   const cameraRef = useRef(null)
   //status do acesso à câmera
   const [temPermissao, setTemPermissao] = useState(null)
+  const [temPermissaoGaleria, setTemPermissaoGaleria] = useState(null)
   const [iconePadrao, setIconePadrao] = useState('md')
   //tipo inicial da câmera (front ou back)
   const [tipoCamera, setTipoCamera] = useState(Camera.Constants.Type.back)
@@ -29,7 +30,7 @@ export default function App() {
         const cameraDisponivel = await Camera.isAvailableAsync()
         setTemPermissao(!cameraDisponivel)
       } else {
-        const { status } = await Camera.requestCameraPermissionsAsync()
+        const { status } = await Camera.askAsync(Permissions.CAMERA_ROLL)
         setTemPermissao(status === 'granted')
       }
     })()
@@ -51,30 +52,40 @@ export default function App() {
     return <Text>Acesso negado à câmera ou o dispositivo não dispõem de uma</Text>
   }
 
-  async function obterResolucoes(){
+  async function obterResolucoes() {
     let resolucoes = await cameraRef.current.getAvailablePictureSizesAsync("16:9")
     console.log("Resoluções suportadas: " + JSON.stringify(resolucoes))
-    if(resolucoes && resolucoes.lenght && resolucoes.lenght > 0){
+    if (resolucoes && resolucoes.lenght && resolucoes.lenght > 0) {
       console.log(`Maior qualidade: ${resolucoes[resolucoes.lenght - 1]}`)
       console.log(`Meior qualidade: ${resolucoes[0]}`)
     }
   }
 
-   async function tirarFoto(){
-     if(cameraRef){
-       await obterResolucoes()
-       const options = {
-         quality: 0.5,
-         skipProcessing: true,
-         base64: true
-       }
-       const foto = await cameraRef.current.takePictureAsync(options)
-       setFotoCapturada(foto.uri)
-       setExibeModalFoto(true)
+  async function salvaFoto(){
+    if(temPermissaoGaleria){
+      setExibeModalFoto(false)
+      const asset = await MediaLibrary.createAssetAsync(fotoCapturada)
+      await MediaLibrary.createAlbumAsync('AdsCamera', asset, false)
+    }else{
+      Alert.alert('Sem permissão', 'App não possui acesso a galeria!')
+    }
+  }
 
-       let msg = 'Foto tirada com sucesso!'
+  async function tirarFoto() {
+    if (cameraRef) {
+      await obterResolucoes()
+      const options = {
+        quality: 0.5,
+        skipProcessing: true,
+        base64: true
+      }
+      const foto = await cameraRef.current.takePictureAsync(options)
+      setFotoCapturada(foto.uri)
+      setExibeModalFoto(true)
 
-       switch (Platform.OS) {
+      let msg = 'Foto tirada com sucesso!'
+
+      switch (Platform.OS) {
         case 'android':
           Alert.alert('Imagem Capturada', msg)
           break
@@ -84,8 +95,8 @@ export default function App() {
         case 'web':
           alert(msg)
       }
-     }
-   }
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -133,23 +144,29 @@ export default function App() {
           </TouchableOpacity>
         </View>
       </Camera>
+      {fotoCapturada && 
       <Modal animationType="slide" transparent={true} visible={exibirModalFoto}>
         <View style={styles.modalView}>
-          <View style={{ flexDirection: 'row-reverse'}}>
-            <TouchableOpacity style={{margin: 2}}
-            onPress={() => {
-              setExibeModalFoto(false)
-            }}
+          <View style={{ flexDirection: 'row-reverse' }}>
+            <TouchableOpacity style={{ margin: 2 }}
+              onPress={() => {
+                setExibeModalFoto(false)
+              }}
               accessible={true}
               accessibilityLabel="Fechar"
               accessibilityHint="Fecha a janela atual"
             >
-              <Ionicons name={`${iconePadrao}-close-circle`} size={40} color="#d9534f"/>
+              <Ionicons name={`${iconePadrao}-close-circle`} size={40} color="#d9534f" />
+            </TouchableOpacity>
+            <TouchableOpacity style={{ margin: 2 }}
+              onPress={salvaFoto}>
+              Ionicons name={`${iconePadrao}-cloud-upload`} size={40} color="#121212"/>
             </TouchableOpacity>
           </View>
+          <Image source={{ uri: fotoCapturada }} style={{ width: '90%', height: '70%', borderRadius: 20 }} />
         </View>
       </Modal>
-
+    }
     </SafeAreaView>
   )
 }
@@ -168,7 +185,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center'
   },
-  
+
   camera: {
     flex: 1,
     backgroundColor: 'transparent',
