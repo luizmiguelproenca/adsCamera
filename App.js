@@ -47,8 +47,14 @@ export default function App() {
     return <Text>Acesso negado à câmera ou o dispositivo não dispõem de uma</Text>
   }
 
+  async function obterResolucoes(){
+    let resolucoes = await cameraRef.current.getAvailablePicturesSizesAsync("16:9")
+    console.log("Resoluções suportadas: " + JSON.stringify(resolucoes))
+  }
+
    async function tirarFoto(){
      if(cameraRef){
+       await obterResolucoes()
        const options = {
          quality: 0.5,
          skipProcessing: true,
