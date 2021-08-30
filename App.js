@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Platform, Alert, Modal } from 'react-native'
 
 import { Camera } from 'expo-camera'
 import * as Permissions from 'expo-permissions'
@@ -18,6 +18,10 @@ export default function App() {
   const [tipoCamera, setTipoCamera] = useState(Camera.Constants.Type.back)
   //status incial do flash
   const [tipoFlash, setTipoFlash] = useState(Camera.Constants.FlashMode.off)
+  //controle de exibicao do Modal da foto
+  const [exibirModalFoto, setExibeModalFoto] = useState(false)
+  //referencia à foto capturada
+  const [fotoCapturada, setFotoCapturada] = useState(null)
 
   useEffect(() => {
     (async () => {
@@ -48,8 +52,12 @@ export default function App() {
   }
 
   async function obterResolucoes(){
-    let resolucoes = await cameraRef.current.getAvailablePicturesSizesAsync("16:9")
+    let resolucoes = await cameraRef.current.getAvailablePictureSizesAsync("16:9")
     console.log("Resoluções suportadas: " + JSON.stringify(resolucoes))
+    if(resolucoes && resolucoes.lenght && resolucoes.lenght > 0){
+      console.log(`Maior qualidade: ${resolucoes[resolucoes.lenght - 1]}`)
+      console.log(`Meior qualidade: ${resolucoes[0]}`)
+    }
   }
 
    async function tirarFoto(){
@@ -61,7 +69,21 @@ export default function App() {
          base64: true
        }
        const foto = await cameraRef.current.takePictureAsync(options)
-       console.log(foto.uri);
+       setFotoCapturada(foto.uri)
+       setExibeModalFoto(true)
+
+       let msg = 'Foto tirada com sucesso!'
+
+       switch (Platform.OS) {
+        case 'android':
+          Alert.alert('Imagem Capturada', msg)
+          break
+        case 'ios':
+          Alert.alert('Imagem Capturada', msg)
+          break
+        case 'web':
+          alert(msg)
+      }
      }
    }
 
@@ -111,16 +133,42 @@ export default function App() {
           </TouchableOpacity>
         </View>
       </Camera>
+      <Modal animationType="slide" transparent={true} visible={exibirModalFoto}>
+        <View style={styles.modalView}>
+          <View style={{ flexDirection: 'row-reverse'}}>
+            <TouchableOpacity style={{margin: 2}}
+            onPress={() => {
+              setExibeModalFoto(false)
+            }}
+              accessible={true}
+              accessibilityLabel="Fechar"
+              accessibilityHint="Fecha a janela atual"
+            >
+              <Ionicons name={`${iconePadrao}-close-circle`} size={40} color="#d9534f"/>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
+  modalView: {
+    margin: 10,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 15,
+    opacity: 0.95,
+    alignItems: "center"
+  },
+
   container: {
     flex: 1,
     justifyContent: 'center'
-  }
-  ,
+  },
+  
   camera: {
     flex: 1,
     backgroundColor: 'transparent',
