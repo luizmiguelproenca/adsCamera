@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Platform, Alert, Modal, Image } from 'react-native'
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  Alert,
+  Modal,
+  Image
+} from 'react-native'
 
 import { Camera } from 'expo-camera'
 import * as Permissions from 'expo-permissions'
@@ -17,27 +27,28 @@ export default function App() {
   const [iconePadrao, setIconePadrao] = useState('md')
   //tipo inicial da câmera (front ou back)
   const [tipoCamera, setTipoCamera] = useState(Camera.Constants.Type.back)
-  //status incial do flash
+  //status inicial do flash
   const [tipoFlash, setTipoFlash] = useState(Camera.Constants.FlashMode.off)
   //controle de exibicao do Modal da foto
-  const [exibirModalFoto, setExibeModalFoto] = useState(false)
+  const [exibeModalFoto, setExibeModalFoto] = useState(false)
   //referencia à foto capturada
   const [fotoCapturada, setFotoCapturada] = useState(null)
 
   useEffect(() => {
     (async () => {
-      if (Platform.OS === 'web') {
-        const cameraDisponivel = await Camera.isAvailableAsync()
-        setTemPermissao(!cameraDisponivel)
-      } else {
-        const { status } = await Camera.askAsync(Permissions.CAMERA_ROLL)
-        setTemPermissao(status === 'granted')
-      }
+      const {status} = await Permissions.askAsync(Permissions.CAMERA)
+      setTemPermissao(status === 'granted')
+    })(),
+    (async () => {
+      //solicita a permissão para a galeria de imagens
+      const {status} = await Permissions.askAsync(Permissions.CAMERA_ROLL)
+      setTemPermissaoGaleria(status === 'granted')
     })()
+    
   }, [])
 
   useEffect(() => {
-    //dependendo do SO, exibiremos diferentes icones
+    //dependendo do SO, exibiremos diferentes ícone
     switch (Platform.OS) {
       case 'android':
         setIconePadrao('md')
@@ -48,25 +59,21 @@ export default function App() {
     }
   }, [])
 
-  if (temPermissao === false) {
-    return <Text>Acesso negado à câmera ou o dispositivo não dispõem de uma</Text>
-  }
-
   async function obterResolucoes() {
     let resolucoes = await cameraRef.current.getAvailablePictureSizesAsync("16:9")
-    console.log("Resoluções suportadas: " + JSON.stringify(resolucoes))
-    if (resolucoes && resolucoes.lenght && resolucoes.lenght > 0) {
-      console.log(`Maior qualidade: ${resolucoes[resolucoes.lenght - 1]}`)
-      console.log(`Meior qualidade: ${resolucoes[0]}`)
+    console.log("Resoluções suportadas:" + JSON.stringify(resolucoes))
+    if (resolucoes && resolucoes.length && resolucoes.length > 0) {
+      console.log(`Maior qualidade: ${resolucoes[resolucoes.length - 1]}`)
+      console.log(`Menor qualidade: ${resolucoes[0]}`)
     }
   }
 
   async function salvaFoto(){
-    if(temPermissaoGaleria){
-      setExibeModalFoto(false)
-      const asset = await MediaLibrary.createAssetAsync(fotoCapturada)
-      await MediaLibrary.createAlbumAsync('AdsCamera', asset, false)
-    }else{
+    if (temPermissaoGaleria){
+        setExibeModalFoto(false)
+        const asset = await MediaLibrary.createAssetAsync(fotoCapturada)
+        await MediaLibrary.createAlbumAsync('AdsCamera', asset, false)
+    } else {
       Alert.alert('Sem permissão', 'App não possui acesso a galeria!')
     }
   }
@@ -83,7 +90,7 @@ export default function App() {
       setFotoCapturada(foto.uri)
       setExibeModalFoto(true)
 
-      let msg = 'Foto tirada com sucesso!'
+      let msg = "Foto tirada com sucesso!"
 
       switch (Platform.OS) {
         case 'android':
@@ -98,9 +105,24 @@ export default function App() {
     }
   }
 
+  if (temPermissao === null) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Cabecalho titulo="📸 Dispositivo sem câmera" />
+      </SafeAreaView>
+    )
+  }
+  if (temPermissao === false) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Cabecalho titulo="🚫📸 Sem acesso à câmera" />
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <Cabecalho titulo="ADS Câmera " />
+      <Cabecalho titulo="ADS Câmera" />
       <Camera
         style={{ flex: 1 }}
         type={tipoCamera}
@@ -112,7 +134,7 @@ export default function App() {
             style={styles.touch}
             onPress={tirarFoto}
           >
-            <Ionicons name={`${iconePadrao}-camera`} size={40} color="#9e9e9e" />
+            <Ionicons name={`${iconePadrao}-camera`} size={40} color="#9E9E9E" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -125,8 +147,9 @@ export default function App() {
               )
             }}
           >
-            <Ionicons name={`${iconePadrao}-camera-reverse`} size={40} color='#9e9e9e' />
+            <Ionicons name={`${iconePadrao}-camera-reverse`} size={40} color="#9E9E9E" />
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.touch}
             onPress={() => {
@@ -140,12 +163,12 @@ export default function App() {
               tipoFlash === Camera.Constants.FlashMode.on
                 ? iconePadrao + "-flash"
                 : iconePadrao + "-flash-off"
-            } size={40} color="#9e9e9e" />
+            } size={40} color="#9E9E9E" />
           </TouchableOpacity>
         </View>
       </Camera>
-      {fotoCapturada && 
-      <Modal animationType="slide" transparent={true} visible={exibirModalFoto}>
+      {fotoCapturada &&
+      <Modal animationType="slide" transparente={true} visible={exibeModalFoto}>
         <View style={styles.modalView}>
           <View style={{ flexDirection: 'row-reverse' }}>
             <TouchableOpacity style={{ margin: 2 }}
@@ -156,19 +179,22 @@ export default function App() {
               accessibilityLabel="Fechar"
               accessibilityHint="Fecha a janela atual"
             >
-              <Ionicons name={`${iconePadrao}-close-circle`} size={40} color="#d9534f" />
+              <Ionicons name={`${iconePadrao}-close-circle`} size={40} color="#D9534F" />
             </TouchableOpacity>
             <TouchableOpacity style={{ margin: 2 }}
               onPress={salvaFoto}>
-              Ionicons name={`${iconePadrao}-cloud-upload`} size={40} color="#121212"/>
+              <Ionicons name={`${iconePadrao}-cloud-upload`} size={40} color="#121212" />
             </TouchableOpacity>
           </View>
-          <Image source={{ uri: fotoCapturada }} style={{ width: '90%', height: '70%', borderRadius: 20 }} />
+          <Image source={{ uri: fotoCapturada }}
+            style={{ width: '90%', height: '70%', borderRadius: 20 }}
+          />
         </View>
       </Modal>
-    }
+     }
     </SafeAreaView>
   )
+
 }
 
 const styles = StyleSheet.create({
@@ -180,12 +206,10 @@ const styles = StyleSheet.create({
     opacity: 0.95,
     alignItems: "center"
   },
-
   container: {
     flex: 1,
     justifyContent: 'center'
   },
-
   camera: {
     flex: 1,
     backgroundColor: 'transparent',
